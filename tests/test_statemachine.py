@@ -40,12 +40,12 @@ def player(library):
 
 
 # ---------------------------------------------------------------------------
-# Initial state
+# Initial state (starts in PAUSED, no album loaded)
 # ---------------------------------------------------------------------------
 
 class TestInitialState:
-    def test_starts_in_idle(self, player):
-        assert player.state is State.IDLE
+    def test_starts_in_paused(self, player):
+        assert player.state is State.PAUSED
 
     def test_no_album(self, player):
         assert player.current_album is None
@@ -55,10 +55,10 @@ class TestInitialState:
 
 
 # ---------------------------------------------------------------------------
-# Transitions from IDLE
+# Transitions from PAUSED without album loaded
 # ---------------------------------------------------------------------------
 
-class TestFromIdle:
+class TestFromPausedNoAlbum:
     def test_play_album_transitions_to_playing(self, player):
         player.play("Album A")
         assert player.state is State.PLAYING
@@ -69,15 +69,15 @@ class TestFromIdle:
         with pytest.raises(InvalidTransitionError):
             player.play()
 
-    def test_pause_from_idle_raises(self, player):
+    def test_pause_from_initial_paused_raises(self, player):
         with pytest.raises(InvalidTransitionError):
             player.pause()
 
-    def test_next_from_idle_raises(self, player):
+    def test_next_without_album_raises(self, player):
         with pytest.raises(InvalidTransitionError):
             player.next_title()
 
-    def test_previous_from_idle_raises(self, player):
+    def test_previous_without_album_raises(self, player):
         with pytest.raises(InvalidTransitionError):
             player.previous_title()
 
@@ -127,7 +127,7 @@ class TestFromPlaying:
 
 
 # ---------------------------------------------------------------------------
-# Transitions from PAUSED
+# Transitions from PAUSED (with album loaded)
 # ---------------------------------------------------------------------------
 
 class TestFromPaused:

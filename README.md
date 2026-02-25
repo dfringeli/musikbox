@@ -25,48 +25,51 @@ Recognised audio extensions: `.mp3`, `.flac`, `.ogg`, `.wav`, `.m4a`, `.aac`,
 
 ## State machine
 
-The player has three states and a set of allowed transitions between them.
+The player has two states and a set of allowed transitions between them.
+On startup the player enters the **PAUSED** state with no album loaded.
 
 ### States
 
-| State       | Description                                      |
-|-------------|--------------------------------------------------|
-| **IDLE**    | No album loaded. Player is silent.               |
-| **PLAYING** | An album is loaded and a title is being played.  |
-| **PAUSED**  | An album is loaded but playback is paused.       |
+| State       | Description                                                       |
+|-------------|-------------------------------------------------------------------|
+| **PAUSED**  | Playback is paused. This is the initial state on startup.         |
+| **PLAYING** | An album is loaded and a title is being played.                   |
 
 ### State properties
 
 - `current_album` – name of the currently loaded album (folder name), or
-  `None` when idle.
+  `None` when no album has been loaded yet.
 - `current_title` – file name of the currently active title, or `None` when
-  idle.
+  no album has been loaded yet.
 
 ### Transitions
 
 ```
-           play(album)
-  IDLE ──────────────────► PLAYING
-                            │  ▲
-                     pause  │  │  play() / play(album)
-                            ▼  │
-                           PAUSED
+                play(album)
+  ┌──────────────────────────────────┐
+  │         play() / play(album)     │
+  │  PAUSED ◄──────────────── PLAYING
+  │    │                        ▲  │
+  │    │  play(album)           │  │ pause()
+  │    └────────────────────────┘  │
+  │                                │
+  └────────────────────────────────┘
+       next / prev / play(album)
 ```
 
-| From        | Action             | To        | Notes                                                  |
-|-------------|--------------------|-----------|--------------------------------------------------------|
-| IDLE        | `play(album)`      | PLAYING   | Album is required because no album is loaded yet.      |
-| PLAYING     | `pause()`          | PAUSED    | Remembers current album and title position.            |
-| PLAYING     | `next_title()`     | PLAYING   | Advances to the next title; wraps at end of album.     |
-| PLAYING     | `previous_title()` | PLAYING   | Goes back to the previous title; wraps at beginning.   |
-| PLAYING     | `play(album)`      | PLAYING   | Switches to a different album (starts at first title). |
-| PAUSED      | `play()`           | PLAYING   | Resumes playback of the current title.                 |
-| PAUSED      | `play(album)`      | PLAYING   | Switches album and starts playing.                     |
-| PAUSED      | `next_title()`     | PLAYING   | Advances to next title and resumes playback.           |
-| PAUSED      | `previous_title()` | PLAYING   | Goes to previous title and resumes playback.           |
+| From        | Action             | To        | Notes                                                       |
+|-------------|--------------------|-----------|-------------------------------------------------------------|
+| PAUSED      | `play(album)`      | PLAYING   | Loads album, starts at first title.                         |
+| PAUSED      | `play()`           | PLAYING   | Resumes playback (requires an album to be loaded already).  |
+| PAUSED      | `next_title()`     | PLAYING   | Advances to next title and resumes (requires album loaded). |
+| PAUSED      | `previous_title()` | PLAYING   | Goes to previous title and resumes (requires album loaded). |
+| PLAYING     | `pause()`          | PAUSED    | Remembers current album and title position.                 |
+| PLAYING     | `next_title()`     | PLAYING   | Advances to the next title; wraps at end of album.          |
+| PLAYING     | `previous_title()` | PLAYING   | Goes back to the previous title; wraps at beginning.        |
+| PLAYING     | `play(album)`      | PLAYING   | Switches to a different album (starts at first title).      |
 
-Invalid transitions (e.g. `pause()` from IDLE, or `next_title()` from IDLE)
-raise an `InvalidTransitionError`.
+When no album is loaded yet, `play()` without an album argument, `next_title()`,
+`previous_title()`, and `pause()` raise an `InvalidTransitionError`.
 
 ## Project structure
 

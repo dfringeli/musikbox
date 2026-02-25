@@ -2,9 +2,8 @@
 
 States
 ------
-- idle    : No album is loaded. The player is silent.
 - playing : An album is loaded and a title is being played.
-- paused  : An album is loaded but playback is paused.
+- paused  : Playback is paused (initial state).
 
 State properties
 ----------------
@@ -13,19 +12,17 @@ State properties
 
 Allowed transitions
 -------------------
-From *idle*:
+From *paused*:
     play(album)          → playing   (loads album, starts at first title)
+    play()               → playing   (resumes current album; requires album loaded)
+    next_title()         → playing   (requires album loaded)
+    previous_title()     → playing   (requires album loaded)
 
 From *playing*:
     pause()              → paused
     next_title()         → playing   (advances to the next title in the album)
     previous_title()     → playing   (goes back to the previous title)
     play(album)          → playing   (switches to a different album, first title)
-
-From *paused*:
-    play()               → playing   (resumes; or play(album) to switch album)
-    next_title()         → playing
-    previous_title()     → playing
 """
 
 from __future__ import annotations
@@ -38,7 +35,6 @@ if TYPE_CHECKING:
 
 
 class State(Enum):
-    IDLE = auto()
     PLAYING = auto()
     PAUSED = auto()
 
@@ -52,7 +48,7 @@ class MusicPlayerStateMachine:
 
     def __init__(self, library: MusicLibrary) -> None:
         self._library = library
-        self._state: State = State.IDLE
+        self._state: State = State.PAUSED
         self._current_album: str | None = None
         self._current_title: str | None = None
         self._titles: list[str] = []
@@ -80,28 +76,21 @@ class MusicPlayerStateMachine:
         Parameters
         ----------
         album:
-            Name of the album folder to load.  Required when in *idle* state.
-            Optional when in *playing* or *paused* – if given, switches album;
-            if ``None``, resumes the current album.
+            Name of the album folder to load.  Required when no album has
+            been loaded yet.  Optional when in *playing* or *paused* with an
+            album already loaded – if given, switches album; if ``None``,
+            resumes the current album.
         """
-        if self._state is State.IDLE:
-            if album is None:
-                raise InvalidTransitionError(
-                    "Cannot play from idle without specifying an album."
-                )
+        if album is not None:
             self._load_album(album)
             self._state = State.PLAYING
             return
 
-        if self._state in (State.PLAYING, State.PAUSED):
-            if album is not None:
-                self._load_album(album)
-            self._state = State.PLAYING
-            return
-
-        raise InvalidTransitionError(
-            f"play() is not allowed in state {self._state.name}."
-        )
+        if self._current_album is None:
+            raise InvalidTransitionError(
+                "Cannot resume without an album. Use play(album) first."
+            )
+        self._state = State.PLAYING
 
     def pause(self) -> None:
         """Pause playback.  Only allowed from *playing*."""
@@ -116,11 +105,11 @@ class MusicPlayerStateMachine:
         """Advance to the next title in the current album.
 
         Wraps around to the first title when the end is reached.
-        Only allowed from *playing* or *paused*.
+        Requires an album to be loaded.
         """
-        if self._state not in (State.PLAYING, State.PAUSED):
+        if self._current_album is None:
             raise InvalidTransitionError(
-                f"next_title() is not allowed in state {self._state.name}."
+                "next_title() requires an album to be loaded."
             )
         self._title_index = (self._title_index + 1) % len(self._titles)
         self._current_title = self._titles[self._title_index]
@@ -130,11 +119,11 @@ class MusicPlayerStateMachine:
         """Go back to the previous title in the current album.
 
         Wraps around to the last title when the beginning is reached.
-        Only allowed from *playing* or *paused*.
+        Requires an album to be loaded.
         """
-        if self._state not in (State.PLAYING, State.PAUSED):
+        if self._current_album is None:
             raise InvalidTransitionError(
-                f"previous_title() is not allowed in state {self._state.name}."
+                "previous_title() requires an album to be loaded."
             )
         self._title_index = (self._title_index - 1) % len(self._titles)
         self._current_title = self._titles[self._title_index]
