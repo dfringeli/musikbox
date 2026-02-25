@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "musikbox"
+version = "0.1.0"
+description = "A music player state machine for Raspberry Pi – like Toniebox, but with privacy"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+
+[project.scripts]
+musikbox = "musikbox.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
