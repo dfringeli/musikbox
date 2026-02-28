@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from musikbox.audio import AudioPlayer
 from musikbox.library import MusicLibrary
 from musikbox.statemachine import InvalidTransitionError, MusicPlayerStateMachine
 
@@ -34,7 +35,8 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     library = MusicLibrary(args.music_dir)
-    player = MusicPlayerStateMachine(library)
+    audio = AudioPlayer()
+    player = MusicPlayerStateMachine(library, audio=audio)
 
     rfid_reader = None
     if args.rfid:
@@ -67,6 +69,8 @@ def main(argv: list[str] | None = None) -> None:
             except (EOFError, KeyboardInterrupt):
                 print()
                 break
+
+            audio.check_events()
 
             if not raw:
                 continue

@@ -34,6 +34,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from musikbox.audio import AudioPlayer
     from musikbox.library import MusicLibrary
 
 
@@ -49,13 +50,21 @@ class InvalidTransitionError(Exception):
 class MusicPlayerStateMachine:
     """A minimal state machine for a folder-based music player."""
 
-    def __init__(self, library: MusicLibrary) -> None:
+    def __init__(
+        self,
+        library: MusicLibrary,
+        audio: AudioPlayer | None = None,
+    ) -> None:
         self._library = library
+        self._audio = audio
         self._state: State = State.PAUSED
         self._current_album: str | None = None
         self._current_title: str | None = None
         self._titles: list[str] = []
         self._title_index: int = 0
+
+        if self._audio is not None:
+            self._audio.set_end_callback(self.on_title_end)
 
     # -- public properties ---------------------------------------------------
 
@@ -87,12 +96,15 @@ class MusicPlayerStateMachine:
         if album is not None:
             self._load_album(album)
             self._state = State.PLAYING
+            self._play_current()
             return
 
         if self._current_album is None:
             raise InvalidTransitionError(
                 "Cannot resume without an album. Use play(album) first."
             )
+        if self._audio is not None and self._state is State.PAUSED:
+            self._audio.unpause()
         self._state = State.PLAYING
 
     def pause(self) -> None:
@@ -102,6 +114,8 @@ class MusicPlayerStateMachine:
                 f"pause() is only allowed in PLAYING state, "
                 f"current state is {self._state.name}."
             )
+        if self._audio is not None:
+            self._audio.pause()
         self._state = State.PAUSED
 
     def next_title(self) -> None:
@@ -117,6 +131,7 @@ class MusicPlayerStateMachine:
         self._title_index = (self._title_index + 1) % len(self._titles)
         self._current_title = self._titles[self._title_index]
         self._state = State.PLAYING
+        self._play_current()
 
     def previous_title(self) -> None:
         """Go back to the previous title in the current album.
@@ -131,6 +146,7 @@ class MusicPlayerStateMachine:
         self._title_index = (self._title_index - 1) % len(self._titles)
         self._current_title = self._titles[self._title_index]
         self._state = State.PLAYING
+        self._play_current()
 
     def on_rfid_scan(self, uid: str) -> None:
         """Handle an RFID tag scan.
@@ -143,7 +159,30 @@ class MusicPlayerStateMachine:
             raise ValueError(f"No album found for RFID UID '{uid}'.")
         self.play(album)
 
+    def on_title_end(self) -> None:
+        """Handle end-of-track event from the audio backend.
+
+        Auto-advances to the next title.  If the last title in the album
+        just finished, transitions to PAUSED.
+        """
+        if self._current_album is None:
+            return
+        if self._title_index >= len(self._titles) - 1:
+            self._state = State.PAUSED
+        else:
+            self._title_index += 1
+            self._current_title = self._titles[self._title_index]
+            self._play_current()
+
     # -- internal helpers ----------------------------------------------------
+
+    def _play_current(self) -> None:
+        """Tell the audio backend to play the current title (if available)."""
+        if self._audio is not None and self._current_album is not None:
+            path = self._library.get_title_path(
+                self._current_album, self._current_title  # type: ignore[arg-type]
+            )
+            self._audio.play(path)
 
     def _load_album(self, album: str) -> None:
         titles = self._library.get_titles(album)

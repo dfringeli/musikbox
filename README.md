@@ -23,6 +23,22 @@ single base path (default `/home/username/Music`):
 Recognised audio extensions: `.mp3`, `.flac`, `.ogg`, `.wav`, `.m4a`, `.aac`,
 `.wma`, `.opus`.  Non-audio files (artwork, playlists, etc.) are ignored.
 
+### RFID-tagged albums
+
+To associate an album with an RFID tag, prefix the folder name with the tag's
+UID as an uppercase hex string followed by a space:
+
+```
+/home/username/Music/
+    9355A72BB5 ACDC/
+        01 - Highway to Hell.mp3
+    A1B2C3D4E5 Beatles/
+        01 - Come Together.flac
+```
+
+When a tag is scanned, the player looks up the album whose folder name starts
+with the scanned UID (case-insensitive match) and begins playback.
+
 ## State machine
 
 The player has two states and a set of allowed transitions between them.
@@ -67,6 +83,7 @@ On startup the player enters the **PAUSED** state with no album loaded.
 | PLAYING     | `next_title()`     | PLAYING   | Advances to the next title; wraps at end of album.          |
 | PLAYING     | `previous_title()` | PLAYING   | Goes back to the previous title; wraps at beginning.        |
 | PLAYING     | `play(album)`      | PLAYING   | Switches to a different album (starts at first title).      |
+| Any         | `on_rfid_scan(uid)`| PLAYING   | Looks up album by RFID UID and starts playback.             |
 
 When no album is loaded yet, `play()` without an album argument, `next_title()`,
 `previous_title()`, and `pause()` raise an `InvalidTransitionError`.
@@ -82,10 +99,12 @@ musikbox/
 │       ├── __init__.py
 │       ├── cli.py            # Interactive command-line interface
 │       ├── library.py        # Music library scanner
+│       ├── rfid.py           # RFID tag reader (background thread)
 │       └── statemachine.py   # State machine (states, transitions)
 └── tests/
     ├── __init__.py
     ├── test_library.py
+    ├── test_rfid.py
     └── test_statemachine.py
 ```
 
@@ -118,6 +137,9 @@ musikbox
 
 # Or specify a custom path
 musikbox --music-dir /home/pi/Music
+
+# Enable RFID tag reader (requires pirc522 and an MFRC522 reader connected via SPI)
+musikbox --music-dir /home/pi/Music --rfid
 ```
 
 ### Interactive commands
