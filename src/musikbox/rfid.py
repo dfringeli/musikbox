@@ -67,7 +67,14 @@ class RfidReader:
     def _poll_loop(self) -> None:
         from pirc522 import RFID
 
-        rdr = RFID(pin_rst=self._pin_rst, pin_irq=None)
+        try:
+            rdr = RFID(pin_rst=self._pin_rst, pin_irq=None)
+        except RuntimeError as exc:
+            print(f"RFID: failed to initialise reader: {exc}")
+            print("RFID: on Raspberry Pi 5, install rpi-lgpio: "
+                  "sudo pip install rpi-lgpio --break-system-packages")
+            return
+
         try:
             while not self._stop_event.is_set():
                 (error, _tag_type) = rdr.request()
