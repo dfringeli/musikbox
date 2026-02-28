@@ -4,7 +4,7 @@ After=sound.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/musikbox
+ExecStart=/usr/local/bin/musikbox
 Restart=on-failure
 User=musikbox
 
