@@ -6,7 +6,7 @@ After=sound.target
 Type=simple
 ExecStart=/usr/bin/musikbox
 Restart=on-failure
-User=pi
+User=musikbox
 
 [Install]
 WantedBy=multi-user.target

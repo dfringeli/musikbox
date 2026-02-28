@@ -193,9 +193,11 @@ python3 --version
 git clone <repo-url> ~/musikbox
 cd ~/musikbox
 
-# Install in editable mode (no virtualenv needed for a dedicated Pi)
-pip install -e .
+# Install system-wide with RFID support
+sudo pip install -e ".[rfid]" --break-system-packages
 ```
+
+If you don't need RFID, a plain `pip install -e .` is enough.
 
 ### Scanning RFID tags
 
@@ -240,6 +242,39 @@ musikbox --music-dir /home/pi/Music --rfid \
 | `prev`             | Go back to the previous title.              |
 | `status`           | Show current state, album, and title.       |
 | `quit`             | Exit musikbox.                              |
+
+## Troubleshooting
+
+### `sudo: musikbox: command not found`
+
+If you installed with `pip install --break-system-packages` as a regular user,
+the `musikbox` binary ends up in `~/.local/bin/` which `sudo` cannot see.
+Install system-wide instead:
+
+```bash
+sudo pip install -e ".[rfid]" --break-system-packages
+```
+
+This puts `musikbox` into `/usr/local/bin/`. Verify with `which musikbox`.
+
+### `GPIO.setup` RuntimeError on Raspberry Pi 5
+
+The `pirc522` library depends on `RPi.GPIO`, which does not support the
+Raspberry Pi 5. Install `rpi-lgpio` as a drop-in replacement:
+
+```bash
+sudo pip install rpi-lgpio --break-system-packages
+```
+
+This provides the `RPi.GPIO` API on top of `lgpio`, which works on Pi 5.
+
+### `ModuleNotFoundError: No module named 'pirc522'`
+
+You installed without the RFID extra. Reinstall with:
+
+```bash
+sudo pip install -e ".[rfid]" --break-system-packages
+```
 
 ## Running tests
 
