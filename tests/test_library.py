@@ -49,6 +49,27 @@ class TestGetTitles:
         assert lib.get_titles("Ghost") == []
 
 
+class TestFindAlbumByUid:
+    def test_finds_matching_album(self, tmp_path):
+        (tmp_path / "9355A72BB5 ACDC").mkdir()
+        lib = MusicLibrary(tmp_path)
+        assert lib.find_album_by_uid("9355A72BB5") == "9355A72BB5 ACDC"
+
+    def test_returns_none_when_no_match(self, tmp_path):
+        (tmp_path / "SomeAlbum").mkdir()
+        lib = MusicLibrary(tmp_path)
+        assert lib.find_album_by_uid("DEADBEEF") is None
+
+    def test_case_insensitive_match(self, tmp_path):
+        (tmp_path / "9355a72bb5 LowercaseFolder").mkdir()
+        lib = MusicLibrary(tmp_path)
+        assert lib.find_album_by_uid("9355A72BB5") == "9355a72bb5 LowercaseFolder"
+
+    def test_empty_library(self, tmp_path):
+        lib = MusicLibrary(tmp_path)
+        assert lib.find_album_by_uid("AABB") is None
+
+
 class TestGetTitlePath:
     def test_returns_full_path(self, tmp_path):
         lib = MusicLibrary(tmp_path)

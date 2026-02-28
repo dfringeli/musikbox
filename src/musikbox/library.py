@@ -57,6 +57,17 @@ class MusicLibrary:
             if entry.is_file() and entry.suffix.lower() in AUDIO_EXTENSIONS
         )
 
+    def find_album_by_uid(self, uid: str) -> str | None:
+        """Find an album whose folder name starts with *uid* (case-insensitive).
+
+        Returns the album folder name, or ``None`` if no match is found.
+        """
+        uid_upper = uid.upper()
+        for album in self.list_albums():
+            if album.upper().startswith(uid_upper):
+                return album
+        return None
+
     def get_title_path(self, album: str, title: str) -> Path:
         """Return the full path to a title inside an album."""
         return self._basepath / album / title

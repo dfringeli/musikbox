@@ -23,6 +23,9 @@ From *playing*:
     next_title()         → playing   (advances to the next title in the album)
     previous_title()     → playing   (goes back to the previous title)
     play(album)          → playing   (switches to a different album, first title)
+
+From any state:
+    on_rfid_scan(uid)    → playing   (looks up album by RFID UID, loads & plays)
 """
 
 from __future__ import annotations
@@ -128,6 +131,17 @@ class MusicPlayerStateMachine:
         self._title_index = (self._title_index - 1) % len(self._titles)
         self._current_title = self._titles[self._title_index]
         self._state = State.PLAYING
+
+    def on_rfid_scan(self, uid: str) -> None:
+        """Handle an RFID tag scan.
+
+        Looks up the album by UID prefix and starts playback.
+        Raises ``ValueError`` if no matching album is found.
+        """
+        album = self._library.find_album_by_uid(uid)
+        if album is None:
+            raise ValueError(f"No album found for RFID UID '{uid}'.")
+        self.play(album)
 
     # -- internal helpers ----------------------------------------------------
 

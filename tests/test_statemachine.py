@@ -172,6 +172,34 @@ class TestFromPaused:
 # Edge cases
 # ---------------------------------------------------------------------------
 
+class TestOnRfidScan:
+    def test_scan_from_paused_plays_album(self, player, music_dir):
+        (music_dir / "AABB Album A").mkdir()
+        (music_dir / "AABB Album A" / "song.mp3").touch()
+        player.on_rfid_scan("AABB")
+        assert player.state is State.PLAYING
+        assert player.current_album == "AABB Album A"
+
+    def test_scan_from_playing_switches_album(self, player, music_dir):
+        player.play("Album A")
+        (music_dir / "CCDD Album C").mkdir()
+        (music_dir / "CCDD Album C" / "track.flac").touch()
+        player.on_rfid_scan("CCDD")
+        assert player.state is State.PLAYING
+        assert player.current_album == "CCDD Album C"
+
+    def test_scan_unknown_uid_raises(self, player):
+        with pytest.raises(ValueError, match="No album found"):
+            player.on_rfid_scan("DEADBEEF")
+
+    def test_scan_unknown_uid_keeps_state(self, player):
+        player.play("Album A")
+        with pytest.raises(ValueError):
+            player.on_rfid_scan("DEADBEEF")
+        assert player.state is State.PLAYING
+        assert player.current_album == "Album A"
+
+
 class TestEdgeCases:
     def test_play_nonexistent_album_raises(self, player):
         with pytest.raises(ValueError, match="no playable titles"):
