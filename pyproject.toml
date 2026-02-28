@@ -11,7 +11,7 @@ license = {text = "MIT"}
 dependencies = ["pygame"]
 
 [project.optional-dependencies]
-rfid = ["pirc522"]
+rfid = ["pi-rc522"]
 
 [project.scripts]
 musikbox = "musikbox.cli:main"
