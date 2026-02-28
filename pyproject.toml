@@ -4,11 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "musikbox"
-version = "0.1.0"
+version = "1.0.0"
 description = "A music player state machine for Raspberry Pi – like Toniebox, but with privacy"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 dependencies = ["pygame"]
+
+[project.optional-dependencies]
+rfid = ["pirc522"]
 
 [project.scripts]
 musikbox = "musikbox.cli:main"
