@@ -179,6 +179,7 @@ class TestOnRfidScan:
         player.on_rfid_scan("AABB")
         assert player.state is State.PLAYING
         assert player.current_album == "AABB Album A"
+        assert player.current_uid == "AABB"
 
     def test_scan_from_playing_switches_album(self, player, music_dir):
         player.play("Album A")
@@ -187,6 +188,19 @@ class TestOnRfidScan:
         player.on_rfid_scan("CCDD")
         assert player.state is State.PLAYING
         assert player.current_album == "CCDD Album C"
+        assert player.current_uid == "CCDD"
+
+    def test_scan_same_uid_is_ignored(self, player, music_dir):
+        (music_dir / "AABB Album A").mkdir()
+        (music_dir / "AABB Album A" / "song1.mp3").touch()
+        (music_dir / "AABB Album A" / "song2.mp3").touch()
+        player.on_rfid_scan("AABB")
+        player.next_title()
+        assert player.current_title == "song2.mp3"
+        # Scanning the same tag again should NOT restart the album
+        player.on_rfid_scan("AABB")
+        assert player.current_title == "song2.mp3"
+        assert player.state is State.PLAYING
 
     def test_scan_unknown_uid_raises(self, player):
         with pytest.raises(ValueError, match="No album found"):
@@ -198,6 +212,66 @@ class TestOnRfidScan:
             player.on_rfid_scan("DEADBEEF")
         assert player.state is State.PLAYING
         assert player.current_album == "Album A"
+
+    def test_initial_uid_is_none(self, player):
+        assert player.current_uid is None
+
+
+class TestRfidActionTags:
+    """Tests for special RFID action tags (pause, next, prev)."""
+
+    @pytest.fixture()
+    def action_player(self, library):
+        return MusicPlayerStateMachine(
+            library,
+            pause_uid="PAUSE1",
+            next_uid="NEXT1",
+            prev_uid="PREV1",
+        )
+
+    def test_pause_tag_pauses_playback(self, action_player):
+        action_player.play("Album A")
+        assert action_player.state is State.PLAYING
+        action_player.on_rfid_scan("PAUSE1")
+        assert action_player.state is State.PAUSED
+
+    def test_pause_tag_resumes_playback(self, action_player):
+        action_player.play("Album A")
+        action_player.pause()
+        action_player.on_rfid_scan("PAUSE1")
+        assert action_player.state is State.PLAYING
+
+    def test_pause_tag_ignored_without_album(self, action_player):
+        action_player.on_rfid_scan("PAUSE1")
+        assert action_player.state is State.PAUSED
+
+    def test_next_tag_advances_title(self, action_player):
+        action_player.play("Album A")
+        assert action_player.current_title == "01 - First.mp3"
+        action_player.on_rfid_scan("NEXT1")
+        assert action_player.current_title == "02 - Second.mp3"
+
+    def test_prev_tag_goes_back(self, action_player):
+        action_player.play("Album A")
+        action_player.next_title()
+        assert action_player.current_title == "02 - Second.mp3"
+        action_player.on_rfid_scan("PREV1")
+        assert action_player.current_title == "01 - First.mp3"
+
+    def test_action_tags_do_not_set_current_uid(self, action_player):
+        action_player.play("Album A")
+        action_player.on_rfid_scan("PAUSE1")
+        assert action_player.current_uid is None
+
+    def test_action_tags_not_treated_as_albums(self, action_player, music_dir):
+        """Scanning an action tag should never trigger an album lookup."""
+        # Even if a folder named PAUSE1 existed, the action takes priority
+        (music_dir / "PAUSE1 Album").mkdir()
+        (music_dir / "PAUSE1 Album" / "song.mp3").touch()
+        action_player.play("Album A")
+        action_player.on_rfid_scan("PAUSE1")
+        assert action_player.current_album == "Album A"
+        assert action_player.state is State.PAUSED
 
 
 class TestEdgeCases:

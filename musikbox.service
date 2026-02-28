@@ -1,0 +1,12 @@
+[Unit]
+Description=musikbox – folder-based music player
+After=sound.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/musikbox
+Restart=on-failure
+User=pi
+
+[Install]
+WantedBy=multi-user.target

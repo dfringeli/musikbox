@@ -57,6 +57,9 @@ On startup the player enters the **PAUSED** state with no album loaded.
   `None` when no album has been loaded yet.
 - `current_title` – file name of the currently active title, or `None` when
   no album has been loaded yet.
+- `current_uid` – RFID UID of the currently loaded album, or `None` when no
+  album has been loaded via RFID yet. Scanning the same UID again is silently
+  ignored so playback continues uninterrupted.
 
 ### Transitions
 
@@ -88,21 +91,86 @@ On startup the player enters the **PAUSED** state with no album loaded.
 When no album is loaded yet, `play()` without an album argument, `next_title()`,
 `previous_title()`, and `pause()` raise an `InvalidTransitionError`.
 
+### RFID action tags
+
+In addition to album tags, you can assign dedicated RFID tags for player
+controls. These are configured via CLI flags or the config file (see below).
+When scanned, they trigger the corresponding action instead of loading an
+album:
+
+| Action tag     | Behaviour                                                     |
+|----------------|---------------------------------------------------------------|
+| `--pause-uid`  | Toggles between PLAYING and PAUSED.                           |
+| `--next-uid`   | Advances to the next title in the current album.              |
+| `--prev-uid`   | Goes back to the previous title in the current album.         |
+
+Action tags always take priority over album folders, even if a folder name
+happens to start with the same UID.
+
+## Configuration file
+
+Settings can be stored in a TOML file so you don't need to pass CLI flags
+every time. The default location is `/etc/musikbox.toml`.
+
+```toml
+music-dir = "/home/pi/Music"
+rfid = true
+
+[action-tags]
+pause-uid = "AABBCCDD"
+next-uid = "11223344"
+prev-uid = "55667788"
+```
+
+All keys are optional — missing keys use built-in defaults. CLI flags always
+override config file values when explicitly provided.
+
+To use a config file in a different location:
+
+```bash
+musikbox --config /path/to/my-config.toml
+```
+
+If the config file does not exist, musikbox starts with defaults (no error).
+
+## systemd service
+
+To run musikbox automatically on boot, install the provided systemd unit file:
+
+```bash
+sudo cp musikbox.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable musikbox
+sudo systemctl start musikbox
+```
+
+The service runs as user `pi` and reads its settings from `/etc/musikbox.toml`.
+Check logs with:
+
+```bash
+journalctl -u musikbox -f
+```
+
 ## Project structure
 
 ```
 musikbox/
 ├── pyproject.toml
 ├── README.md
+├── musikbox.service          # systemd unit file
 ├── src/
 │   └── musikbox/
 │       ├── __init__.py
+│       ├── audio.py          # Audio playback backend (pygame.mixer)
 │       ├── cli.py            # Interactive command-line interface
+│       ├── config.py         # TOML config file loader
 │       ├── library.py        # Music library scanner
 │       ├── rfid.py           # RFID tag reader (background thread)
 │       └── statemachine.py   # State machine (states, transitions)
 └── tests/
     ├── __init__.py
+    ├── test_audio.py
+    ├── test_config.py
     ├── test_library.py
     ├── test_rfid.py
     └── test_statemachine.py
@@ -129,6 +197,18 @@ cd ~/musikbox
 pip install -e .
 ```
 
+### Scanning RFID tags
+
+To find out the hex UID of a tag (for naming album folders or configuring
+action tags), use the `--scan` flag:
+
+```bash
+musikbox --scan
+```
+
+Hold a tag to the reader and its UID will be printed. Press Ctrl+C to stop.
+Use the printed UID as the folder name prefix (e.g. `9355A72BB5 My Album/`).
+
 ### Running
 
 ```bash
@@ -140,6 +220,12 @@ musikbox --music-dir /home/pi/Music
 
 # Enable RFID tag reader (requires pirc522 and an MFRC522 reader connected via SPI)
 musikbox --music-dir /home/pi/Music --rfid
+
+# Configure RFID action tags for pause, next, and previous
+musikbox --music-dir /home/pi/Music --rfid \
+    --pause-uid AABBCCDD \
+    --next-uid 11223344 \
+    --prev-uid 55667788
 ```
 
 ### Interactive commands

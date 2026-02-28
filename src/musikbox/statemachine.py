@@ -9,6 +9,7 @@ State properties
 ----------------
 - current_album : str | None  – name of the album currently loaded.
 - current_title : str | None  – file-name of the title currently active.
+- current_uid   : str | None  – RFID UID of the currently loaded album.
 
 Allowed transitions
 -------------------
@@ -26,6 +27,11 @@ From *playing*:
 
 From any state:
     on_rfid_scan(uid)    → playing   (looks up album by RFID UID, loads & plays)
+
+Special RFID action tags (configurable UIDs):
+    pause_uid            → toggles between playing and paused
+    next_uid             → advances to the next title
+    prev_uid             → goes back to the previous title
 """
 
 from __future__ import annotations
@@ -54,12 +60,20 @@ class MusicPlayerStateMachine:
         self,
         library: MusicLibrary,
         audio: AudioPlayer | None = None,
+        *,
+        pause_uid: str | None = None,
+        next_uid: str | None = None,
+        prev_uid: str | None = None,
     ) -> None:
         self._library = library
         self._audio = audio
+        self._pause_uid = pause_uid
+        self._next_uid = next_uid
+        self._prev_uid = prev_uid
         self._state: State = State.PAUSED
         self._current_album: str | None = None
         self._current_title: str | None = None
+        self._current_uid: str | None = None
         self._titles: list[str] = []
         self._title_index: int = 0
 
@@ -79,6 +93,10 @@ class MusicPlayerStateMachine:
     @property
     def current_title(self) -> str | None:
         return self._current_title
+
+    @property
+    def current_uid(self) -> str | None:
+        return self._current_uid
 
     # -- transitions ---------------------------------------------------------
 
@@ -151,12 +169,34 @@ class MusicPlayerStateMachine:
     def on_rfid_scan(self, uid: str) -> None:
         """Handle an RFID tag scan.
 
-        Looks up the album by UID prefix and starts playback.
+        Special action UIDs (pause/next/prev) are handled first.
+        For album UIDs, if the same UID is scanned again the call is
+        silently ignored so that playback continues uninterrupted.
         Raises ``ValueError`` if no matching album is found.
         """
+        # -- action tags -------------------------------------------------
+        if self._pause_uid is not None and uid == self._pause_uid:
+            if self._state is State.PLAYING:
+                self.pause()
+            elif self._current_album is not None:
+                self.play()
+            return
+
+        if self._next_uid is not None and uid == self._next_uid:
+            self.next_title()
+            return
+
+        if self._prev_uid is not None and uid == self._prev_uid:
+            self.previous_title()
+            return
+
+        # -- album tags --------------------------------------------------
+        if uid == self._current_uid:
+            return
         album = self._library.find_album_by_uid(uid)
         if album is None:
             raise ValueError(f"No album found for RFID UID '{uid}'.")
+        self._current_uid = uid
         self.play(album)
 
     def on_title_end(self) -> None:
