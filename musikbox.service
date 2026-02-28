@@ -1,15 +1,12 @@
 [Unit]
 Description=musikbox – folder-based music player
-After=sound.target
+After=pulseaudio.service pipewire.service
 
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/musikbox
 Restart=on-failure
 RestartSec=5
-User=musikbox
-Environment=XDG_RUNTIME_DIR=/run/user/1000
-Environment=PULSE_RUNTIME_PATH=/run/user/1000/pulse
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
