@@ -10,7 +10,7 @@ import time
 from musikbox.audio import AudioPlayer
 from musikbox.config import DEFAULT_CONFIG_PATH, load_config
 from musikbox.library import MusicLibrary
-from musikbox.statemachine import InvalidTransitionError, MusicPlayerStateMachine
+from musikbox.player import MusicPlayer
 
 
 def _run_scan_mode() -> None:
@@ -34,9 +34,10 @@ def _run_scan_mode() -> None:
         reader.stop()
 
 
-def _print_status(player: MusicPlayerStateMachine) -> None:
+def _print_status(player: MusicPlayer) -> None:
+    state = "paused" if player.is_paused else "playing"
     print(
-        f"  [{player.state.name}]"
+        f"  [{state}]"
         f"  album: {player.current_album or '–'}"
         f"  title: {player.current_title or '–'}"
     )
@@ -44,7 +45,7 @@ def _print_status(player: MusicPlayerStateMachine) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="musikbox – a folder-based music player state machine",
+        description="musikbox – a folder-based music player",
     )
     parser.add_argument(
         "--config",
@@ -100,7 +101,7 @@ def main(argv: list[str] | None = None) -> None:
 
     library = MusicLibrary(music_dir)
     audio = AudioPlayer()
-    player = MusicPlayerStateMachine(
+    player = MusicPlayer(
         library,
         audio=audio,
         pause_uid=pause_uid,
@@ -192,7 +193,7 @@ def main(argv: list[str] | None = None) -> None:
                     _print_status(player)
                 else:
                     print(f"  Unknown command: {cmd}")
-            except (InvalidTransitionError, ValueError) as exc:
+            except ValueError as exc:
                 print(f"  Error: {exc}")
     finally:
         if rfid_reader is not None:
