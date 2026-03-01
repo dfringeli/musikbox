@@ -1,12 +1,42 @@
 [Unit]
 Description=musikbox – folder-based music player
-After=pulseaudio.service pipewire.service
+Documentation=https://github.com/dfringeli/musikbox
+
+# Wait for Bluetooth and ALSA sound to be ready.
+After=bluetooth.target sound.target
+Wants=bluetooth.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/musikbox
+User=pi
+Group=pi
+
+# Grant access to audio (ALSA), Bluetooth, SPI, and GPIO.
+SupplementaryGroups=audio bluetooth spi gpio
+
+# Start musikbox in RFID-daemon mode (no interactive CLI).
+ExecStart=/usr/local/bin/musikbox --rfid
 Restart=on-failure
 RestartSec=5
 
+# Allow the RFID reader and audio stream time to shut down.
+TimeoutStopSec=10
+
+# Environment — force ALSA (skip PulseAudio / PipeWire).
+Environment=SDL_AUDIODRIVER=alsa
+Environment=AUDIODEV=default
+
+# Hardening
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/pi/Music
+PrivateTmp=true
+NoNewPrivileges=true
+
+# SPI and GPIO device access
+DeviceAllow=/dev/spidev* rw
+DeviceAllow=/dev/gpiochip* rw
+DeviceAllow=/dev/snd/* rw
+
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
