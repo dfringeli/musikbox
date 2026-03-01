@@ -3,7 +3,7 @@
 Like Toniebox, but with privacy.
 
 A folder-based music player controlled by a state machine, designed to run on
-a **Raspberry Pi Zero 2 W** with Raspbian.
+a **Raspberry Pi 5** with Raspbian as a systemd daemon service.
 
 ## Music library layout
 
@@ -133,24 +133,6 @@ musikbox --config /path/to/my-config.toml
 
 If the config file does not exist, musikbox starts with defaults (no error).
 
-## systemd service
-
-To run musikbox automatically on boot, install the provided systemd unit file:
-
-```bash
-sudo cp musikbox.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable musikbox
-sudo systemctl start musikbox
-```
-
-The service runs as user `pi` and reads its settings from `/etc/musikbox.toml`.
-Check logs with:
-
-```bash
-journalctl -u musikbox -f
-```
-
 ## Project structure
 
 ```
@@ -161,7 +143,7 @@ musikbox/
 ├── src/
 │   └── musikbox/
 │       ├── __init__.py
-│       ├── audio.py          # Audio playback backend (pygame.mixer)
+│       ├── audio.py          # Audio playback backend (sounddevice + soundfile)
 │       ├── cli.py            # Interactive command-line interface
 │       ├── config.py         # TOML config file loader
 │       ├── library.py        # Music library scanner
@@ -176,15 +158,89 @@ musikbox/
     └── test_statemachine.py
 ```
 
-## Setup on Raspberry Pi Zero 2 W
+## Setup on Raspberry Pi
 
-### Prerequisites
+### Hardware prerequisites
 
-Raspbian (latest) ships with Python 3.11+. Verify:
+| Component            | Interface | Purpose                       |
+|----------------------|-----------|-------------------------------|
+| MFRC522 RFID reader  | SPI       | Scan RFID tags to select albums |
+| Bluetooth speaker     | Bluetooth | Wireless audio output         |
+| 3.5 mm / HDMI / I2S  | ALSA      | Wired audio output (alternative) |
+
+### Enable SPI and Bluetooth
+
+Open the Raspberry Pi configuration tool:
 
 ```bash
-python3 --version
+sudo raspi-config
 ```
+
+1. Go to **Interface Options → SPI** and enable it.
+2. Go to **Interface Options → Serial Port** — disable the login shell but
+   keep the serial port hardware enabled (needed by some HATs).
+3. Bluetooth is enabled by default on Raspberry Pi OS. Verify:
+
+```bash
+systemctl status bluetooth
+```
+
+Reboot after changing any interface settings:
+
+```bash
+sudo reboot
+```
+
+### System dependencies
+
+Install the native libraries that `sounddevice` and `soundfile` need, plus
+Bluetooth audio support via BlueALSA:
+
+```bash
+sudo apt update
+sudo apt install -y \
+    libportaudio2 \
+    libsndfile1 \
+    bluez \
+    bluealsa
+```
+
+- **libportaudio2** – PortAudio backend used by `sounddevice` to talk to ALSA.
+- **libsndfile1** – decodes MP3, FLAC, OGG, WAV (used by `soundfile`).
+- **bluez** – Linux Bluetooth stack.
+- **bluealsa** – routes Bluetooth A2DP audio through ALSA (no PulseAudio
+  required).
+
+### Pair a Bluetooth speaker
+
+```bash
+bluetoothctl
+```
+
+Inside the Bluetooth shell:
+
+```
+power on
+agent on
+default-agent
+scan on
+# Wait until you see your speaker, then:
+pair XX:XX:XX:XX:XX:XX
+trust XX:XX:XX:XX:XX:XX
+connect XX:XX:XX:XX:XX:XX
+quit
+```
+
+Replace `XX:XX:XX:XX:XX:XX` with your speaker's MAC address.
+
+To verify audio output, run a quick test:
+
+```bash
+speaker-test -D bluealsa -c 2 -t wav
+```
+
+If you use a wired output (3.5 mm jack, HDMI, or I2S DAC), skip BlueALSA and
+use the default ALSA device instead.
 
 ### Installation
 
@@ -197,7 +253,14 @@ cd ~/musikbox
 sudo pip install -e ".[rfid]" --break-system-packages
 ```
 
-If you don't need RFID, a plain `pip install -e .` is enough.
+If you don't need RFID, a plain `sudo pip install -e .` is enough.
+
+On Raspberry Pi 5 the `pirc522` RFID library depends on `RPi.GPIO`, which
+must be replaced by `rpi-lgpio`:
+
+```bash
+sudo pip install rpi-lgpio --break-system-packages
+```
 
 ### Scanning RFID tags
 
@@ -211,7 +274,7 @@ musikbox --scan
 Hold a tag to the reader and its UID will be printed. Press Ctrl+C to stop.
 Use the printed UID as the folder name prefix (e.g. `9355A72BB5 My Album/`).
 
-### Running
+### Running interactively
 
 ```bash
 # Use the default music directory (/home/username/Music)
@@ -242,6 +305,83 @@ musikbox --music-dir /home/pi/Music --rfid \
 | `prev`             | Go back to the previous title.              |
 | `status`           | Show current state, album, and title.       |
 | `quit`             | Exit musikbox.                              |
+
+## Daemon service (systemd)
+
+The included `musikbox.service` unit file runs musikbox as a system daemon on
+boot. It starts the player in RFID mode so albums are selected by scanning
+tags — no interactive terminal required.
+
+### What the service configures
+
+| Concern      | How it is handled                                                |
+|--------------|------------------------------------------------------------------|
+| **Audio**    | Runs as member of the `audio` group — direct ALSA access, no PulseAudio. |
+| **Bluetooth**| Member of the `bluetooth` group; service starts after `bluetooth.target`. |
+| **SPI**      | Member of the `spi` group; device access to `/dev/spidev*`.     |
+| **GPIO**     | Member of the `gpio` group; device access to `/dev/gpiochip*`.  |
+| **Security** | `ProtectSystem=strict`, `NoNewPrivileges=true`, read-only home except music dir. |
+
+### Install the service
+
+```bash
+# Copy the unit file
+sudo cp musikbox.service /etc/systemd/system/
+
+# Reload systemd so it picks up the new file
+sudo systemctl daemon-reload
+
+# Enable the service to start on boot
+sudo systemctl enable musikbox
+
+# Start the service now
+sudo systemctl start musikbox
+```
+
+### Check status and logs
+
+```bash
+# Service status
+sudo systemctl status musikbox
+
+# Follow the live log
+journalctl -u musikbox -f
+
+# Show logs since last boot
+journalctl -u musikbox -b
+```
+
+### Restart / stop the service
+
+```bash
+sudo systemctl restart musikbox
+sudo systemctl stop musikbox
+```
+
+### Ensure the `pi` user belongs to the required groups
+
+The service runs as user `pi`. Make sure this user is in the necessary groups:
+
+```bash
+sudo usermod -aG audio,bluetooth,spi,gpio pi
+```
+
+Log out and back in (or reboot) for group changes to take effect.
+
+### Verify hardware access
+
+After starting the service, check that the required devices are accessible:
+
+```bash
+# SPI device (RFID reader)
+ls -l /dev/spidev0.*
+
+# GPIO chip (RFID RST pin)
+ls -l /dev/gpiochip*
+
+# ALSA sound devices
+ls -l /dev/snd/
+```
 
 ## Troubleshooting
 
@@ -275,6 +415,60 @@ You installed without the RFID extra. Reinstall with:
 ```bash
 sudo pip install -e ".[rfid]" --break-system-packages
 ```
+
+### No sound from Bluetooth speaker
+
+1. Make sure `bluealsa` is running:
+
+   ```bash
+   systemctl status bluealsa
+   ```
+
+2. Check that the speaker is connected:
+
+   ```bash
+   bluetoothctl info XX:XX:XX:XX:XX:XX
+   ```
+
+3. Test audio directly:
+
+   ```bash
+   speaker-test -D bluealsa -c 2 -t wav
+   ```
+
+4. If `bluealsa` is not installed:
+
+   ```bash
+   sudo apt install bluealsa
+   ```
+
+### No sound at all (wired output)
+
+List available ALSA devices and make sure one is present:
+
+```bash
+aplay -l
+```
+
+Test audio with the default device:
+
+```bash
+speaker-test -c 2 -t wav
+```
+
+### Service fails to start
+
+Check the journal for details:
+
+```bash
+journalctl -u musikbox -b --no-pager
+```
+
+Common causes:
+- `musikbox` not installed system-wide (`which musikbox` returns nothing).
+- User `pi` is missing from required groups (`id pi` to check).
+- SPI not enabled (`ls /dev/spidev*` — if empty, enable SPI via `raspi-config`).
+- Music directory does not exist or is empty.
 
 ## Running tests
 

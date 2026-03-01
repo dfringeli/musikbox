@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "A music player state machine for Raspberry Pi – like Toniebox, but with privacy"
 requires-python = ">=3.11"
 license = {text = "MIT"}
-dependencies = ["pygame"]
+dependencies = ["sounddevice", "soundfile"]
 
 [project.optional-dependencies]
 rfid = ["pi-rc522"]
