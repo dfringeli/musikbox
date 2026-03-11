@@ -100,6 +100,10 @@ class AudioPlayer:
                     stream.close()
         except Exception as exc:
             print(f"Audio: playback error: {exc}")
+            try:
+                print(f"Audio: available devices:\n{sd.query_devices()}")
+            except Exception as qexc:
+                print(f"Audio: device query failed: {qexc}")
             return
 
         # Only signal track-end when playback finished naturally.
