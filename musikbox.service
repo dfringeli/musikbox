@@ -2,9 +2,9 @@
 Description=musikbox – folder-based music player
 Documentation=https://github.com/dfringeli/musikbox
 
-# Wait for Bluetooth and ALSA sound to be ready.
-After=bluetooth.target sound.target
-Wants=bluetooth.target
+# Wait for Bluetooth, ALSA, and the BlueALSA daemon to be ready.
+After=bluetooth.target sound.target bluealsa.service
+Wants=bluetooth.target bluealsa.service
 
 [Service]
 Type=simple
@@ -15,7 +15,7 @@ Group=musikbox
 SupplementaryGroups=audio bluetooth spi gpio
 
 # Start musikbox in RFID-daemon mode (no interactive CLI).
-ExecStart=/usr/local/bin/musikbox
+ExecStart=/usr/local/bin/musikbox --rfid
 Restart=on-failure
 RestartSec=5
 
