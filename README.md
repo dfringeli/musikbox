@@ -150,14 +150,14 @@ sudo apt install -y \
     libportaudio2 \
     libsndfile1 \
     bluez \
-    bluealsa
+    bluez-alsa-utils
 ```
 
 - **libportaudio2** – PortAudio backend used by `sounddevice` to talk to ALSA.
 - **libsndfile1** – decodes MP3, FLAC, OGG, WAV (used by `soundfile`).
 - **bluez** – Linux Bluetooth stack.
-- **bluealsa** – routes Bluetooth A2DP audio through ALSA (no PulseAudio
-  required).
+- **bluez-alsa-utils** – routes Bluetooth A2DP audio through ALSA (no
+  PulseAudio required).
 
 ### Pair a Bluetooth speaker
 
@@ -369,7 +369,7 @@ sudo pip install -e ".[rfid]" --break-system-packages
 1. Make sure `bluealsa` is running:
 
    ```bash
-   systemctl status bluealsa
+   systemctl status bluealsa-aplay
    ```
 
 2. Check that the speaker is connected:
@@ -384,10 +384,10 @@ sudo pip install -e ".[rfid]" --break-system-packages
    speaker-test -D bluealsa -c 2 -t wav
    ```
 
-4. If `bluealsa` is not installed:
+4. If BlueALSA is not installed:
 
    ```bash
-   sudo apt install bluealsa
+   sudo apt install bluez-alsa-utils
    ```
 
 ### No sound at all (wired output)
