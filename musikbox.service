@@ -15,7 +15,7 @@ Group=musikbox
 SupplementaryGroups=audio bluetooth spi gpio
 
 # Start musikbox in RFID-daemon mode (no interactive CLI).
-ExecStart=/usr/local/bin/musikbox --rfid
+ExecStart=/usr/local/bin/musikbox
 Restart=on-failure
 RestartSec=5
 
