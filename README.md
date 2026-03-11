@@ -189,22 +189,24 @@ To verify audio output, run a quick test:
 speaker-test -D bluealsa -c 2 -t wav
 ```
 
-### Set BlueALSA as the default ALSA device
+### Audio routing via PipeWire
 
-By default ALSA routes audio to the first hardware device (usually HDMI).
-Tell it to use the Bluetooth speaker instead by creating `/etc/asound.conf`:
+Raspberry Pi OS Bookworm uses **PipeWire** as the audio server. PipeWire
+manages Bluetooth audio natively through BlueZ — no `asound.conf` needed.
 
+For `sounddevice` (PortAudio) to reach PipeWire from a system service, the
+service must have `XDG_RUNTIME_DIR` set to the user's runtime directory.
+This is already configured in the `musikbox.service` unit file.
+
+Enable **lingering** so the musikbox user's PipeWire session starts at boot
+(before any login):
+
+```bash
+sudo loginctl enable-linger musikbox
 ```
-pcm.!default {
-    type plug
-    slave.pcm "bluealsa"
-}
 
-ctl.!default "bluealsa"
-```
-
-This makes `sounddevice` (and any other ALSA application) route audio to the
-connected Bluetooth speaker automatically — no code changes needed.
+PipeWire will automatically route audio to the connected Bluetooth speaker
+when it is selected as the default output device.
 
 If you use a wired output (3.5 mm jack, HDMI, or I2S DAC), skip BlueALSA and
 use the default ALSA device instead.
