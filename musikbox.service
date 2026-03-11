@@ -34,9 +34,9 @@ PrivateTmp=true
 NoNewPrivileges=true
 
 # SPI and GPIO device access
-DeviceAllow=/dev/spidev* rw
-DeviceAllow=/dev/gpiochip* rw
-DeviceAllow=/dev/snd/* rw
+DeviceAllow=char-spidev rw
+DeviceAllow=char-gpiochip rw
+DeviceAllow=char-snd rw
 
 [Install]
 WantedBy=multi-user.target

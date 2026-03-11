@@ -306,12 +306,13 @@ sudo systemctl restart musikbox
 sudo systemctl stop musikbox
 ```
 
-### Ensure the `pi` user belongs to the required groups
+### Ensure the service user belongs to the required groups
 
-The service runs as user `pi`. Make sure this user is in the necessary groups:
+The service runs as the user specified in `User=` in the unit file. Make sure
+that user is in the necessary groups:
 
 ```bash
-sudo usermod -aG audio,bluetooth,spi,gpio pi
+sudo usermod -aG audio,bluetooth,spi,gpio <username>
 ```
 
 Log out and back in (or reboot) for group changes to take effect.
