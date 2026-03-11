@@ -28,6 +28,7 @@ TimeoutStopSec=10
 WorkingDirectory=/tmp
 Environment=LG_HOME=/tmp
 Environment=PYTHONUNBUFFERED=1
+Environment=XDG_RUNTIME_DIR=/run/user/1000
 
 # Environment — force ALSA (skip PulseAudio / PipeWire).
 Environment=SDL_AUDIODRIVER=alsa
