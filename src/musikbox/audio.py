@@ -13,7 +13,7 @@ import sounddevice as sd
 import soundfile as sf
 
 # Number of frames to read per chunk during streaming playback.
-_BLOCK_SIZE = 2048
+_BLOCK_SIZE = 16384
 
 
 class AudioPlayer:

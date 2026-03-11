@@ -48,6 +48,7 @@ album:
 
 | Action tag     | Behaviour                                                     |
 |----------------|---------------------------------------------------------------|
+| `--play-uid`   | Resumes playback when paused (no-op if already playing).      |
 | `--pause-uid`  | Toggles between playing and paused.                           |
 | `--next-uid`   | Advances to the next title in the current album.              |
 | `--prev-uid`   | Goes back to the previous title in the current album.         |
@@ -65,9 +66,10 @@ music-dir = "/home/pi/Music"
 rfid = true
 
 [action-tags]
+play-uid  = "00112233"
 pause-uid = "AABBCCDD"
-next-uid = "11223344"
-prev-uid = "55667788"
+next-uid  = "11223344"
+prev-uid  = "55667788"
 ```
 
 All keys are optional — missing keys use built-in defaults. CLI flags always
@@ -187,6 +189,23 @@ To verify audio output, run a quick test:
 speaker-test -D bluealsa -c 2 -t wav
 ```
 
+### Set BlueALSA as the default ALSA device
+
+By default ALSA routes audio to the first hardware device (usually HDMI).
+Tell it to use the Bluetooth speaker instead by creating `/etc/asound.conf`:
+
+```
+pcm.!default {
+    type plug
+    slave.pcm "bluealsa"
+}
+
+ctl.!default "bluealsa"
+```
+
+This makes `sounddevice` (and any other ALSA application) route audio to the
+connected Bluetooth speaker automatically — no code changes needed.
+
 If you use a wired output (3.5 mm jack, HDMI, or I2S DAC), skip BlueALSA and
 use the default ALSA device instead.
 
@@ -239,6 +258,9 @@ musikbox --music-dir /home/pi/Music --rfid \
     --pause-uid AABBCCDD \
     --next-uid 11223344 \
     --prev-uid 55667788
+
+# Configure a dedicated play (resume) action tag
+musikbox --music-dir /home/pi/Music --rfid --play-uid 00112233
 ```
 
 ### Interactive commands
@@ -346,16 +368,24 @@ sudo pip install -e ".[rfid]" --break-system-packages
 
 This puts `musikbox` into `/usr/local/bin/`. Verify with `which musikbox`.
 
-### `GPIO.setup` RuntimeError on Raspberry Pi 5
+### `GPIO.setup` / `Cannot determine SOC peripheral base address` on Raspberry Pi 5
 
 The `pirc522` library depends on `RPi.GPIO`, which does not support the
-Raspberry Pi 5. Install `rpi-lgpio` as a drop-in replacement:
+Raspberry Pi 5. `rpi-lgpio` provides a drop-in replacement, but the original
+`RPi.GPIO` must be removed first or it will take precedence:
 
 ```bash
+sudo apt remove python3-rpi.gpio
 sudo pip install rpi-lgpio --break-system-packages
 ```
 
-This provides the `RPi.GPIO` API on top of `lgpio`, which works on Pi 5.
+Verify that `rpi-lgpio` is the one being loaded:
+
+```bash
+python3 -c "import RPi.GPIO; print(RPi.GPIO.__file__)"
+```
+
+The path should reference `rpi_lgpio`, not `RPi`.
 
 ### `ModuleNotFoundError: No module named 'pirc522'`
 

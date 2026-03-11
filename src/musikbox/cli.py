@@ -83,6 +83,11 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="RFID UID for the previous-title action tag",
     )
+    parser.add_argument(
+        "--play-uid",
+        default=None,
+        help="RFID UID for the play (resume) action tag",
+    )
     args = parser.parse_args(argv)
 
     if args.scan:
@@ -95,6 +100,7 @@ def main(argv: list[str] | None = None) -> None:
     # CLI flags override config values (only when explicitly provided)
     music_dir = args.music_dir if args.music_dir is not None else cfg.music_dir
     rfid = args.rfid if args.rfid is not None else cfg.rfid
+    play_uid = args.play_uid if args.play_uid is not None else cfg.play_uid
     pause_uid = args.pause_uid if args.pause_uid is not None else cfg.pause_uid
     next_uid = args.next_uid if args.next_uid is not None else cfg.next_uid
     prev_uid = args.prev_uid if args.prev_uid is not None else cfg.prev_uid
@@ -104,6 +110,7 @@ def main(argv: list[str] | None = None) -> None:
     player = MusicPlayer(
         library,
         audio=audio,
+        play_uid=play_uid,
         pause_uid=pause_uid,
         next_uid=next_uid,
         prev_uid=prev_uid,

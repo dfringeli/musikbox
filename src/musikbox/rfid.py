@@ -71,8 +71,10 @@ class RfidReader:
             rdr = RFID(pin_rst=self._pin_rst, pin_irq=None)
         except RuntimeError as exc:
             print(f"RFID: failed to initialise reader: {exc}")
-            print("RFID: on Raspberry Pi 5, install rpi-lgpio: "
-                  "sudo pip install rpi-lgpio --break-system-packages")
+            print("RFID: if running on Raspberry Pi 5, ensure the original "
+                  "RPi.GPIO is removed and only rpi-lgpio is installed:\n"
+                  "  sudo apt remove python3-rpi.gpio\n"
+                  "  sudo pip install rpi-lgpio --break-system-packages")
             return
 
         try:

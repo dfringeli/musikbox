@@ -4,6 +4,7 @@ Loads albums and plays their tracks in sequence.  Navigation (next/prev)
 wraps around within the current album.
 
 Special RFID action tags (configurable UIDs):
+    play_uid             → resumes playback when paused
     pause_uid            → toggles pause / resume
     next_uid             → advances to the next title
     prev_uid             → goes back to the previous title
@@ -26,12 +27,14 @@ class MusicPlayer:
         library: MusicLibrary,
         audio: AudioPlayer | None = None,
         *,
+        play_uid: str | None = None,
         pause_uid: str | None = None,
         next_uid: str | None = None,
         prev_uid: str | None = None,
     ) -> None:
         self._library = library
         self._audio = audio
+        self._play_uid = play_uid
         self._pause_uid = pause_uid
         self._next_uid = next_uid
         self._prev_uid = prev_uid
@@ -126,6 +129,11 @@ class MusicPlayer:
         silently ignored so that playback continues uninterrupted.
         Raises ``ValueError`` if no matching album is found.
         """
+        if self._play_uid is not None and uid == self._play_uid:
+            if self._is_paused and self._current_album is not None:
+                self.play()
+            return
+
         if self._pause_uid is not None and uid == self._pause_uid:
             if self._is_paused:
                 self.play()
@@ -178,4 +186,4 @@ class MusicPlayer:
         self._current_album = album
         self._titles = titles
         self._title_index = 0
-        self._current_title = self._titles[0]
+        self._current_title = self._titles[self._title_index]
