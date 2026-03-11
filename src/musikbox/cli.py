@@ -139,6 +139,11 @@ def main(argv: list[str] | None = None) -> None:
     # When running with RFID (e.g. as a daemon), skip the interactive loop
     if rfid:
         print("musikbox – running in RFID mode (Ctrl+C to stop)")
+        print(f"Music directory: {music_dir}")
+        _action_tags = {"play": play_uid, "pause": pause_uid, "next": next_uid, "prev": prev_uid}
+        configured = {k: v for k, v in _action_tags.items() if v is not None}
+        if configured:
+            print("Action tags:  " + "  ".join(f"{k}: {v}" for k, v in configured.items()))
         stop = False
 
         def _handle_signal(signum: int, frame: object) -> None:
