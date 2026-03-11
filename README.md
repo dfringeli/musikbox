@@ -253,14 +253,12 @@ musikbox --music-dir /home/pi/Music
 # Enable RFID tag reader (requires pirc522 and an MFRC522 reader connected via SPI)
 musikbox --music-dir /home/pi/Music --rfid
 
-# Configure RFID action tags for pause, next, and previous
+# Configure RFID action tags for pause, next, play (resume) and previous
 musikbox --music-dir /home/pi/Music --rfid \
     --pause-uid AABBCCDD \
     --next-uid 11223344 \
+    --play-uid 00112233 \
     --prev-uid 55667788
-
-# Configure a dedicated play (resume) action tag
-musikbox --music-dir /home/pi/Music --rfid --play-uid 00112233
 ```
 
 ### Interactive commands

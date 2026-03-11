@@ -22,6 +22,12 @@ RestartSec=5
 # Allow the RFID reader and audio stream time to shut down.
 TimeoutStopSec=10
 
+# lgpio creates notification FIFOs relative to LG_HOME; the Python wrapper
+# opens them with a relative path, so CWD must match LG_HOME.
+# PrivateTmp=true gives this service an isolated /tmp namespace.
+WorkingDirectory=/tmp
+Environment=LG_HOME=/tmp
+
 # Environment — force ALSA (skip PulseAudio / PipeWire).
 Environment=SDL_AUDIODRIVER=alsa
 Environment=AUDIODEV=default
