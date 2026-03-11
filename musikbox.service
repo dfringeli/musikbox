@@ -39,10 +39,6 @@ ReadWritePaths=/home/musikbox/Music
 PrivateTmp=true
 NoNewPrivileges=true
 
-# SPI and GPIO device access
-DeviceAllow=char-spidev rw
-DeviceAllow=char-gpiochip rw
-DeviceAllow=char-snd rw
 
 [Install]
 WantedBy=multi-user.target
