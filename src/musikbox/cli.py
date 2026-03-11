@@ -121,6 +121,7 @@ def main(argv: list[str] | None = None) -> None:
         from musikbox.rfid import RfidReader
 
         def _on_tag(uid: str) -> None:
+            print(f"  RFID: scanned {uid}")
             try:
                 player.on_rfid_scan(uid)
                 _print_status(player)
