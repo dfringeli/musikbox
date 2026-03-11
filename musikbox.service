@@ -27,6 +27,7 @@ TimeoutStopSec=10
 # PrivateTmp=true gives this service an isolated /tmp namespace.
 WorkingDirectory=/tmp
 Environment=LG_HOME=/tmp
+Environment=PYTHONUNBUFFERED=1
 
 # Environment — force ALSA (skip PulseAudio / PipeWire).
 Environment=SDL_AUDIODRIVER=alsa
