@@ -8,8 +8,8 @@ Wants=bluetooth.target
 
 [Service]
 Type=simple
-User=pi
-Group=pi
+User=musikbox
+Group=musikbox
 
 # Grant access to audio (ALSA), Bluetooth, SPI, and GPIO.
 SupplementaryGroups=audio bluetooth spi gpio
@@ -29,7 +29,7 @@ Environment=AUDIODEV=default
 # Hardening
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/pi/Music
+ReadWritePaths=/home/musikbox/Music
 PrivateTmp=true
 NoNewPrivileges=true
 
