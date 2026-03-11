@@ -2,8 +2,8 @@
 
 Like Toniebox, but with privacy.
 
-A folder-based music player controlled by a state machine, designed to run on
-a **Raspberry Pi 5** with Raspbian as a systemd daemon service.
+A folder-based music player designed to run on a **Raspberry Pi 5** with
+Raspbian as a systemd daemon service.
 
 ## Music library layout
 
@@ -39,59 +39,7 @@ UID as an uppercase hex string followed by a space:
 When a tag is scanned, the player looks up the album whose folder name starts
 with the scanned UID (case-insensitive match) and begins playback.
 
-## State machine
-
-The player has two states and a set of allowed transitions between them.
-On startup the player enters the **PAUSED** state with no album loaded.
-
-### States
-
-| State       | Description                                                       |
-|-------------|-------------------------------------------------------------------|
-| **PAUSED**  | Playback is paused. This is the initial state on startup.         |
-| **PLAYING** | An album is loaded and a title is being played.                   |
-
-### State properties
-
-- `current_album` – name of the currently loaded album (folder name), or
-  `None` when no album has been loaded yet.
-- `current_title` – file name of the currently active title, or `None` when
-  no album has been loaded yet.
-- `current_uid` – RFID UID of the currently loaded album, or `None` when no
-  album has been loaded via RFID yet. Scanning the same UID again is silently
-  ignored so playback continues uninterrupted.
-
-### Transitions
-
-```
-                play(album)
-  ┌──────────────────────────────────┐
-  │         play() / play(album)     │
-  │  PAUSED ◄──────────────── PLAYING
-  │    │                        ▲  │
-  │    │  play(album)           │  │ pause()
-  │    └────────────────────────┘  │
-  │                                │
-  └────────────────────────────────┘
-       next / prev / play(album)
-```
-
-| From        | Action             | To        | Notes                                                       |
-|-------------|--------------------|-----------|-------------------------------------------------------------|
-| PAUSED      | `play(album)`      | PLAYING   | Loads album, starts at first title.                         |
-| PAUSED      | `play()`           | PLAYING   | Resumes playback (requires an album to be loaded already).  |
-| PAUSED      | `next_title()`     | PLAYING   | Advances to next title and resumes (requires album loaded). |
-| PAUSED      | `previous_title()` | PLAYING   | Goes to previous title and resumes (requires album loaded). |
-| PLAYING     | `pause()`          | PAUSED    | Remembers current album and title position.                 |
-| PLAYING     | `next_title()`     | PLAYING   | Advances to the next title; wraps at end of album.          |
-| PLAYING     | `previous_title()` | PLAYING   | Goes back to the previous title; wraps at beginning.        |
-| PLAYING     | `play(album)`      | PLAYING   | Switches to a different album (starts at first title).      |
-| Any         | `on_rfid_scan(uid)`| PLAYING   | Looks up album by RFID UID and starts playback.             |
-
-When no album is loaded yet, `play()` without an album argument, `next_title()`,
-`previous_title()`, and `pause()` raise an `InvalidTransitionError`.
-
-### RFID action tags
+## RFID action tags
 
 In addition to album tags, you can assign dedicated RFID tags for player
 controls. These are configured via CLI flags or the config file (see below).
@@ -100,7 +48,7 @@ album:
 
 | Action tag     | Behaviour                                                     |
 |----------------|---------------------------------------------------------------|
-| `--pause-uid`  | Toggles between PLAYING and PAUSED.                           |
+| `--pause-uid`  | Toggles between playing and paused.                           |
 | `--next-uid`   | Advances to the next title in the current album.              |
 | `--prev-uid`   | Goes back to the previous title in the current album.         |
 
@@ -147,15 +95,15 @@ musikbox/
 │       ├── cli.py            # Interactive command-line interface
 │       ├── config.py         # TOML config file loader
 │       ├── library.py        # Music library scanner
-│       ├── rfid.py           # RFID tag reader (background thread)
-│       └── statemachine.py   # State machine (states, transitions)
+│       ├── player.py         # Music player (album loading, navigation)
+│       └── rfid.py           # RFID tag reader (background thread)
 └── tests/
     ├── __init__.py
     ├── test_audio.py
     ├── test_config.py
     ├── test_library.py
-    ├── test_rfid.py
-    └── test_statemachine.py
+    ├── test_player.py
+    └── test_rfid.py
 ```
 
 ## Setup on Raspberry Pi
