@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> None:
     prev_uid = args.prev_uid if args.prev_uid is not None else cfg.prev_uid
 
     library = MusicLibrary(music_dir)
-    audio = AudioPlayer()
+    audio = AudioPlayer(device=cfg.audio_device)
     player = MusicPlayer(
         library,
         audio=audio,

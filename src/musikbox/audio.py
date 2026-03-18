@@ -1,62 +1,96 @@
-"""Audio playback backend using sounddevice and soundfile.
+"""Audio playback backend using mpg123 via ALSA.
 
-Uses ALSA directly via PortAudio — no PulseAudio dependency.
+Drives mpg123 in remote-control mode so pause/resume work without
+re-opening the audio device.  Works with any ALSA device string,
+including BlueALSA virtual devices.
 """
 
 from __future__ import annotations
 
+import subprocess
 import threading
 from pathlib import Path
 from typing import Callable
 
-import sounddevice as sd
-import soundfile as sf
-
-# Number of frames to read per chunk during streaming playback.
-_BLOCK_SIZE = 16384
-
 
 class AudioPlayer:
-    """Streams audio files through ALSA via sounddevice."""
+    """Drives mpg123 in remote-control mode for ALSA/BlueALSA output."""
 
-    def __init__(self) -> None:
+    def __init__(self, device: str = "default") -> None:
+        self._device = device
         self._end_callback: Callable[[], None] | None = None
-        self._paused = threading.Event()
-        self._paused.set()  # starts in "not paused" state
-        self._stop_event = threading.Event()
         self._track_ended = threading.Event()
-        self._playback_thread: threading.Thread | None = None
+        self._paused = False
+        self._explicit_stop = False
+        self._lock = threading.Lock()
+        self._process = self._start_mpg123()
+        self._monitor_thread = threading.Thread(
+            target=self._monitor_output, daemon=True
+        )
+        self._monitor_thread.start()
+
+    # -- internal ------------------------------------------------------------
+
+    def _start_mpg123(self) -> subprocess.Popen:
+        cmd = ["mpg123", "--remote", "--quiet"]
+        if self._device != "default":
+            cmd += ["--audiodevice", self._device]
+        return subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+
+    def _send(self, cmd: str) -> None:
+        try:
+            if self._process.stdin:
+                self._process.stdin.write(cmd + "\n")
+                self._process.stdin.flush()
+        except BrokenPipeError:
+            pass
+
+    def _monitor_output(self) -> None:
+        """Read mpg123 status lines; detect natural track end via '@P 0'."""
+        for line in self._process.stdout:
+            if line.strip() == "@P 0":
+                with self._lock:
+                    if self._explicit_stop:
+                        self._explicit_stop = False
+                        continue
+                self._track_ended.set()
 
     # -- playback controls ---------------------------------------------------
 
     def play(self, file_path: Path) -> None:
-        """Load and play an audio file from the beginning."""
-        self.stop()
-        self._stop_event.clear()
+        """Load and play an audio file, interrupting any current playback."""
+        with self._lock:
+            self._paused = False
         self._track_ended.clear()
-        self._paused.set()
-        self._playback_thread = threading.Thread(
-            target=self._stream_file,
-            args=(file_path,),
-            daemon=True,
-        )
-        self._playback_thread.start()
+        self._send(f"LOAD {file_path}")
+        print(f"Audio: {file_path.name}")
 
     def pause(self) -> None:
         """Pause the currently playing track."""
-        self._paused.clear()
+        with self._lock:
+            if not self._paused:
+                self._send("PAUSE")
+                self._paused = True
 
     def unpause(self) -> None:
         """Resume a paused track."""
-        self._paused.set()
+        with self._lock:
+            if self._paused:
+                self._send("PAUSE")
+                self._paused = False
 
     def stop(self) -> None:
         """Stop playback entirely."""
-        self._stop_event.set()
-        self._paused.set()  # unblock the thread if it is waiting on pause
-        if self._playback_thread is not None:
-            self._playback_thread.join(timeout=2.0)
-            self._playback_thread = None
+        with self._lock:
+            self._explicit_stop = True
+            self._paused = False
+        self._send("STOP")
 
     # -- end-of-track callback -----------------------------------------------
 
@@ -73,36 +107,3 @@ class AudioPlayer:
             self._track_ended.clear()
             if self._end_callback is not None:
                 self._end_callback()
-
-    # -- internal ------------------------------------------------------------
-
-    def _stream_file(self, file_path: Path) -> None:
-        """Worker that streams *file_path* through an ALSA output stream."""
-        try:
-            with sf.SoundFile(str(file_path)) as f:
-                print(f"Audio: {file_path.name}  {f.channels}ch  {f.samplerate}Hz")
-                stream = sd.OutputStream(
-                    samplerate=f.samplerate,
-                    channels=f.channels,
-                    dtype="float32",
-                )
-                stream.start()
-                try:
-                    while True:
-                        self._paused.wait()
-                        if self._stop_event.is_set():
-                            return
-                        data = f.read(_BLOCK_SIZE, dtype="float32")
-                        if len(data) == 0:
-                            break
-                        stream.write(data)
-                finally:
-                    stream.stop()
-                    stream.close()
-        except Exception as exc:
-            print(f"Audio: playback error: {exc}")
-            return
-
-        # Only signal track-end when playback finished naturally.
-        if not self._stop_event.is_set():
-            self._track_ended.set()

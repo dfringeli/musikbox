@@ -63,6 +63,7 @@ every time. The default location is `/etc/musikbox.toml`.
 
 ```toml
 music-dir = "/home/pi/Music"
+audio-device = "bluealsa:DEV=XX:XX:XX:XX:XX:XX,PROFILE=a2dp"
 rfid = true
 
 [action-tags]
@@ -71,6 +72,10 @@ pause-uid = "AABBCCDD"
 next-uid  = "11223344"
 prev-uid  = "55667788"
 ```
+
+`audio-device` sets the ALSA output device passed to `mpg123`. Use a
+BlueALSA device string for Bluetooth output (replace the MAC address with
+your speaker's), or omit the key entirely to use the ALSA default device.
 
 All keys are optional — missing keys use built-in defaults. CLI flags always
 override config file values when explicitly provided.
@@ -93,7 +98,7 @@ musikbox/
 ├── src/
 │   └── musikbox/
 │       ├── __init__.py
-│       ├── audio.py          # Audio playback backend (sounddevice + soundfile)
+│       ├── audio.py          # Audio playback backend (mpg123 via ALSA)
 │       ├── cli.py            # Interactive command-line interface
 │       ├── config.py         # TOML config file loader
 │       ├── library.py        # Music library scanner
@@ -143,20 +148,18 @@ sudo reboot
 
 ### System dependencies
 
-Install the native libraries that `sounddevice` and `soundfile` need, plus
-Bluetooth audio support via BlueALSA:
+Install the native libraries needed for audio playback and Bluetooth support:
 
 ```bash
 sudo apt update
 sudo apt install -y \
-    libportaudio2 \
-    libsndfile1 \
+    mpg123 \
     bluez \
     bluez-alsa-utils
 ```
 
-- **libportaudio2** – PortAudio backend used by `sounddevice` to talk to ALSA.
-- **libsndfile1** – decodes MP3, FLAC, OGG, WAV (used by `soundfile`).
+- **mpg123** – audio player used as the playback backend; talks directly to
+  ALSA without PortAudio.
 - **bluez** – Linux Bluetooth stack.
 - **bluez-alsa-utils** – routes Bluetooth A2DP audio through ALSA (no
   PulseAudio required).
@@ -189,27 +192,22 @@ To verify audio output, run a quick test:
 speaker-test -D bluealsa -c 2 -t wav
 ```
 
-### Audio routing via PipeWire
+### Audio routing
 
-Raspberry Pi OS Bookworm uses **PipeWire** as the audio server. PipeWire
-manages Bluetooth audio natively through BlueZ — no `asound.conf` needed.
+musikbox uses `mpg123` as its audio backend, which talks directly to ALSA —
+no PulseAudio or PipeWire session required.
 
-For `sounddevice` (PortAudio) to reach PipeWire from a system service, the
-service must have `XDG_RUNTIME_DIR` set to the user's runtime directory.
-This is already configured in the `musikbox.service` unit file.
+For **Bluetooth output**, set `audio-device` in `/etc/musikbox.toml` to the
+BlueALSA device string for your speaker:
 
-Enable **lingering** so the musikbox user's PipeWire session starts at boot
-(before any login):
-
-```bash
-sudo loginctl enable-linger musikbox
+```toml
+audio-device = "bluealsa:DEV=00:1D:DF:AE:57:F3,PROFILE=a2dp"
 ```
 
-PipeWire will automatically route audio to the connected Bluetooth speaker
-when it is selected as the default output device.
+Replace the MAC address with your speaker's (`bluetoothctl info` shows it).
 
-If you use a wired output (3.5 mm jack, HDMI, or I2S DAC), skip BlueALSA and
-use the default ALSA device instead.
+For **wired output** (3.5 mm jack, HDMI, or I2S DAC), omit `audio-device`
+or set it to `"default"` to use the ALSA default device.
 
 ### Installation
 
