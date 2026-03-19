@@ -25,15 +25,23 @@ class AudioPlayer:
         os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
         if device != "default":
             os.environ["SDL_AUDIODEV"] = device
-        pygame.mixer.init()
-        pygame.mixer.music.set_endevent(_MUSIC_END)
+        self._mixer_ready = False
         self._end_callback: Callable[[], None] | None = None
         self._explicit_stop = False
+
+    def _ensure_mixer(self) -> None:
+        """Initialise the mixer on first use (lazy)."""
+        if self._mixer_ready:
+            return
+        pygame.mixer.init()
+        pygame.mixer.music.set_endevent(_MUSIC_END)
+        self._mixer_ready = True
 
     # -- playback controls ---------------------------------------------------
 
     def play(self, file_path: Path) -> None:
         """Load and play an audio file, interrupting any current playback."""
+        self._ensure_mixer()
         self._explicit_stop = False
         pygame.mixer.music.load(str(file_path))
         pygame.mixer.music.play()
