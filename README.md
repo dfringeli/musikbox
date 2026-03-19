@@ -63,7 +63,6 @@ every time. The default location is `/etc/musikbox.toml`.
 
 ```toml
 music-dir = "/home/pi/Music"
-audio-device = "bluealsa:DEV=XX:XX:XX:XX:XX:XX,PROFILE=a2dp"
 rfid = true
 
 [action-tags]
@@ -72,10 +71,6 @@ pause-uid = "AABBCCDD"
 next-uid  = "11223344"
 prev-uid  = "55667788"
 ```
-
-`audio-device` sets the ALSA output device passed to pygame via `SDL_AUDIODEV`.
-Use a BlueALSA device string for Bluetooth output (replace the MAC address with
-your speaker's), or omit the key entirely to use the ALSA default device.
 
 All keys are optional — missing keys use built-in defaults. CLI flags always
 override config file values when explicitly provided.
@@ -198,17 +193,27 @@ speaker-test -D bluealsa -c 2 -t wav
 musikbox uses `pygame.mixer` (SDL2) as its audio backend, which talks directly
 to ALSA — no PulseAudio or PipeWire session required.
 
-For **Bluetooth output**, set `audio-device` in `/etc/musikbox.toml` to the
-BlueALSA device string for your speaker:
+Audio device selection is handled via ALSA configuration, not musikbox config.
 
-```toml
-audio-device = "bluealsa:DEV=00:1D:DF:AE:57:F3,PROFILE=a2dp"
+For **Bluetooth output**, configure BlueALSA as the default ALSA device in
+`/etc/asound.conf`:
+
+```
+defaults.bluealsa.device "XX:XX:XX:XX:XX:XX"
+defaults.bluealsa.profile "a2dp"
+
+pcm.!default {
+    type bluealsa
+    device "XX:XX:XX:XX:XX:XX"
+    profile "a2dp"
+}
 ```
 
-Replace the MAC address with your speaker's (`bluetoothctl info` shows it).
+Replace `XX:XX:XX:XX:XX:XX` with your speaker's MAC address
+(`bluetoothctl info` shows it).
 
-For **wired output** (3.5 mm jack, HDMI, or I2S DAC), omit `audio-device`
-or set it to `"default"` to use the ALSA default device.
+For **wired output** (3.5 mm jack, HDMI, or I2S DAC), no `/etc/asound.conf`
+is needed — ALSA uses the built-in default device automatically.
 
 ### Installation
 

@@ -14,7 +14,6 @@ class Config:
     """Musikbox configuration."""
 
     music_dir: str = "/home/pi/Music"
-    audio_device: str = "default"
     rfid: bool = False
     play_uid: str | None = None
     pause_uid: str | None = None
@@ -39,7 +38,6 @@ def load_config(path: Path | str) -> Config:
 
     return Config(
         music_dir=data.get("music-dir", Config.music_dir),
-        audio_device=data.get("audio-device", Config.audio_device),
         rfid=data.get("rfid", Config.rfid),
         play_uid=action_tags.get("play-uid"),
         pause_uid=action_tags.get("pause-uid"),

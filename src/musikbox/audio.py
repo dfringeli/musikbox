@@ -2,9 +2,7 @@
 
 Drives pygame.mixer.music for pause/resume without re-opening the audio device.
 Sets SDL_VIDEODRIVER=dummy so no display is required on headless systems.
-
-Note: device selection maps to SDL_AUDIODEV; ALSA device strings like
-'bluealsa:...' require the SDL ALSA backend and may need SDL_AUDIODRIVER=alsa.
+Audio device selection is handled via ALSA configuration (e.g. /etc/asound.conf).
 """
 
 from __future__ import annotations
@@ -21,10 +19,8 @@ _MUSIC_END = pygame.USEREVENT + 1
 class AudioPlayer:
     """Drives pygame.mixer.music for audio output."""
 
-    def __init__(self, device: str = "default") -> None:
+    def __init__(self) -> None:
         os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
-        if device != "default":
-            os.environ["SDL_AUDIODEV"] = device
         self._mixer_ready = False
         self._end_callback: Callable[[], None] | None = None
         self._explicit_stop = False
