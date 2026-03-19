@@ -25,7 +25,7 @@ class AudioPlayer:
         os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
         if device != "default":
             os.environ["SDL_AUDIODEV"] = device
-        pygame.init()
+        pygame.mixer.init()
         pygame.mixer.music.set_endevent(_MUSIC_END)
         self._end_callback: Callable[[], None] | None = None
         self._explicit_stop = False

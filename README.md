@@ -73,8 +73,8 @@ next-uid  = "11223344"
 prev-uid  = "55667788"
 ```
 
-`audio-device` sets the ALSA output device passed to `mpg123`. Use a
-BlueALSA device string for Bluetooth output (replace the MAC address with
+`audio-device` sets the ALSA output device passed to pygame via `SDL_AUDIODEV`.
+Use a BlueALSA device string for Bluetooth output (replace the MAC address with
 your speaker's), or omit the key entirely to use the ALSA default device.
 
 All keys are optional — missing keys use built-in defaults. CLI flags always
@@ -98,7 +98,7 @@ musikbox/
 ├── src/
 │   └── musikbox/
 │       ├── __init__.py
-│       ├── audio.py          # Audio playback backend (mpg123 via ALSA)
+│       ├── audio.py          # Audio playback backend (pygame.mixer via ALSA)
 │       ├── cli.py            # Interactive command-line interface
 │       ├── config.py         # TOML config file loader
 │       ├── library.py        # Music library scanner
@@ -153,13 +153,14 @@ Install the native libraries needed for audio playback and Bluetooth support:
 ```bash
 sudo apt update
 sudo apt install -y \
-    mpg123 \
+    python3-pygame \
+    libsdl2-mixer-2.0-0 \
     bluez \
     bluez-alsa-utils
 ```
 
-- **mpg123** – audio player used as the playback backend; talks directly to
-  ALSA without PortAudio.
+- **python3-pygame** / **libsdl2-mixer** – audio playback backend; talks to
+  ALSA via SDL2 without PulseAudio.
 - **bluez** – Linux Bluetooth stack.
 - **bluez-alsa-utils** – routes Bluetooth A2DP audio through ALSA (no
   PulseAudio required).
@@ -194,8 +195,8 @@ speaker-test -D bluealsa -c 2 -t wav
 
 ### Audio routing
 
-musikbox uses `mpg123` as its audio backend, which talks directly to ALSA —
-no PulseAudio or PipeWire session required.
+musikbox uses `pygame.mixer` (SDL2) as its audio backend, which talks directly
+to ALSA — no PulseAudio or PipeWire session required.
 
 For **Bluetooth output**, set `audio-device` in `/etc/musikbox.toml` to the
 BlueALSA device string for your speaker:
@@ -284,7 +285,7 @@ tags — no interactive terminal required.
 
 | Concern      | How it is handled                                                |
 |--------------|------------------------------------------------------------------|
-| **Audio**    | Runs as member of the `audio` group — direct ALSA access, no PulseAudio. |
+| **Audio**    | Runs as member of the `audio` group — SDL2/ALSA access, no PulseAudio. |
 | **Bluetooth**| Member of the `bluetooth` group; service starts after `bluetooth.target`. |
 | **SPI**      | Member of the `spi` group; device access to `/dev/spidev*`.     |
 | **GPIO**     | Member of the `gpio` group; device access to `/dev/gpiochip*`.  |
