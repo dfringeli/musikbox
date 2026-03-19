@@ -1,96 +1,56 @@
-"""Audio playback backend using mpg123 via ALSA.
+"""Audio playback backend using pygame.mixer.
 
-Drives mpg123 in remote-control mode so pause/resume work without
-re-opening the audio device.  Works with any ALSA device string,
-including BlueALSA virtual devices.
+Drives pygame.mixer.music for pause/resume without re-opening the audio device.
+Sets SDL_VIDEODRIVER=dummy so no display is required on headless systems.
+
+Note: device selection maps to SDL_AUDIODEV; ALSA device strings like
+'bluealsa:...' require the SDL ALSA backend and may need SDL_AUDIODRIVER=alsa.
 """
 
 from __future__ import annotations
 
-import subprocess
-import threading
+import os
 from pathlib import Path
 from typing import Callable
 
+import pygame
+
+_MUSIC_END = pygame.USEREVENT + 1
+
 
 class AudioPlayer:
-    """Drives mpg123 in remote-control mode for ALSA/BlueALSA output."""
+    """Drives pygame.mixer.music for audio output."""
 
     def __init__(self, device: str = "default") -> None:
-        self._device = device
+        os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+        if device != "default":
+            os.environ["SDL_AUDIODEV"] = device
+        pygame.init()
+        pygame.mixer.music.set_endevent(_MUSIC_END)
         self._end_callback: Callable[[], None] | None = None
-        self._track_ended = threading.Event()
-        self._paused = False
         self._explicit_stop = False
-        self._lock = threading.Lock()
-        self._process = self._start_mpg123()
-        self._monitor_thread = threading.Thread(
-            target=self._monitor_output, daemon=True
-        )
-        self._monitor_thread.start()
-
-    # -- internal ------------------------------------------------------------
-
-    def _start_mpg123(self) -> subprocess.Popen:
-        cmd = ["mpg123", "--remote", "--quiet"]
-        if self._device != "default":
-            cmd += ["--audiodevice", self._device]
-        return subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-        )
-
-    def _send(self, cmd: str) -> None:
-        try:
-            if self._process.stdin:
-                self._process.stdin.write(cmd + "\n")
-                self._process.stdin.flush()
-        except BrokenPipeError:
-            pass
-
-    def _monitor_output(self) -> None:
-        """Read mpg123 status lines; detect natural track end via '@P 0'."""
-        for line in self._process.stdout:
-            if line.strip() == "@P 0":
-                with self._lock:
-                    if self._explicit_stop:
-                        self._explicit_stop = False
-                        continue
-                self._track_ended.set()
 
     # -- playback controls ---------------------------------------------------
 
     def play(self, file_path: Path) -> None:
         """Load and play an audio file, interrupting any current playback."""
-        with self._lock:
-            self._paused = False
-        self._track_ended.clear()
-        self._send(f"LOAD {file_path}")
+        self._explicit_stop = False
+        pygame.mixer.music.load(str(file_path))
+        pygame.mixer.music.play()
         print(f"Audio: {file_path.name}")
 
     def pause(self) -> None:
         """Pause the currently playing track."""
-        with self._lock:
-            if not self._paused:
-                self._send("PAUSE")
-                self._paused = True
+        pygame.mixer.music.pause()
 
     def unpause(self) -> None:
         """Resume a paused track."""
-        with self._lock:
-            if self._paused:
-                self._send("PAUSE")
-                self._paused = False
+        pygame.mixer.music.unpause()
 
     def stop(self) -> None:
         """Stop playback entirely."""
-        with self._lock:
-            self._explicit_stop = True
-            self._paused = False
-        self._send("STOP")
+        self._explicit_stop = True
+        pygame.mixer.music.stop()
 
     # -- end-of-track callback -----------------------------------------------
 
@@ -103,7 +63,9 @@ class AudioPlayer:
 
         Must be called periodically (e.g. from the main loop).
         """
-        if self._track_ended.is_set():
-            self._track_ended.clear()
+        for event in pygame.event.get(eventtype=_MUSIC_END):
+            if self._explicit_stop:
+                self._explicit_stop = False
+                continue
             if self._end_callback is not None:
                 self._end_callback()
